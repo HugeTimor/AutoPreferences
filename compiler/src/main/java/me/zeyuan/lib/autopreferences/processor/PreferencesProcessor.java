@@ -28,6 +28,7 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
 import me.zeyuan.lib.autopreferences.annotations.Ignore;
+import me.zeyuan.lib.autopreferences.annotations.Name;
 import me.zeyuan.lib.autopreferences.annotations.Preferences;
 
 
@@ -69,7 +70,7 @@ public class PreferencesProcessor extends AbstractProcessor {
         for (Element preferences : env.getElementsAnnotatedWith(Preferences.class)) {
             if (preferences.getKind() == ElementKind.INTERFACE) {
 
-                TypeSpec.Builder classBuilder = buildClass(preferences);
+                TypeSpec.Builder classBuilder = buildBaseClass(preferences);
 
                 addOperateMethod(preferences, classBuilder);
 
@@ -79,8 +80,9 @@ public class PreferencesProcessor extends AbstractProcessor {
         return false;
     }
 
-    private TypeSpec.Builder buildClass(Element preferences) {
-        MethodSpec getPreferences = genGetPreferences(getFileName(preferences));
+    private TypeSpec.Builder buildBaseClass(Element preferences) {
+        String fileName = getFileName(preferences);
+        MethodSpec getPreferences = genGetPreferences(fileName);
 
         String className = preferences.getSimpleName().toString() + CLASS_NAME_SUFFIX;
         return TypeSpec.classBuilder(className)
@@ -92,15 +94,25 @@ public class PreferencesProcessor extends AbstractProcessor {
         for (Element field : preferences.getEnclosedElements()) {
             if (!isIgnored(field)) {
                 String fieldName = field.getSimpleName().toString();
+                String keyName = getKeyName(field);
                 TypeMirror type = field.asType();
                 Object defaultValue = ((VariableElement) field).getConstantValue();
 
-                MethodSpec getterMethod = genGetterMethod(fieldName, type, defaultValue);
+                MethodSpec getterMethod = genGetterMethod(fieldName, keyName, type, defaultValue);
                 classBuilder.addMethod(getterMethod);
 
-                MethodSpec setterMethod = genSetterMethod(fieldName, type);
+                MethodSpec setterMethod = genSetterMethod(fieldName, keyName, type);
                 classBuilder.addMethod(setterMethod);
             }
+        }
+    }
+
+    private String getKeyName(Element field) {
+        Name name = field.getAnnotation(Name.class);
+        if (name == null || name.value().isEmpty()) {
+            return field.getSimpleName().toString();
+        } else {
+            return name.value();
         }
     }
 
@@ -113,28 +125,29 @@ public class PreferencesProcessor extends AbstractProcessor {
         }
     }
 
-    private MethodSpec genGetterMethod(String key, TypeMirror type, Object defaultValue) {
+    private MethodSpec genGetterMethod(String fieldName, String keyName, TypeMirror type,
+                                       Object defaultValue) {
         defaultValue = formatValue(defaultValue);
         String action = getAction(type, Act.GET);
-        String name = getterNameFormat(key);
-        return MethodSpec.methodBuilder(name)
+        String methodName = getterNameFormat(fieldName);
+        return MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(ClassName.get(type))
                 .addParameter(Context, "context")
-                .addStatement("return getPreferences(context).$L($S,$L)", action, key, defaultValue)
+                .addStatement("return getPreferences(context).$L($S,$L)", action, keyName, defaultValue)
                 .build();
     }
 
-    private MethodSpec genSetterMethod(String key, TypeMirror type) {
-        String name = setterNameFormat(key);
+    private MethodSpec genSetterMethod(String fieldName, String keyName, TypeMirror type) {
+        String methodName = setterNameFormat(fieldName);
         String action = getAction(type, Act.PUT);
-        return MethodSpec.methodBuilder(name)
+        return MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(TypeName.VOID)
                 .addParameter(Context, "context")
                 .addParameter(ClassName.get(type), "value")
                 .addStatement("SharedPreferences.Editor editor = getPreferences(context).edit()")
-                .addStatement("editor.$L($S,value)", action, key)
+                .addStatement("editor.$L($S,value)", action, keyName)
                 .addStatement("editor.apply()")
                 .build();
     }

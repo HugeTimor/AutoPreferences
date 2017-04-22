@@ -8,16 +8,11 @@ interface Setting {
 
     boolean isFirstLaunch = false;
 
-    String token = "";
-
     int version = 1;
 
-    float score = 0f;
+    float score = 99.9f;
 
     long time = 1234567890;
-
-    @Ignore()
-    String id = "";
 
     @Ignore()
     enum Type {
