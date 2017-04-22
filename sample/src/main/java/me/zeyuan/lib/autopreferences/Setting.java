@@ -8,6 +8,9 @@ interface Setting {
 
     boolean isFirstLaunch = false;
 
+    /**
+     * The version of api.
+     */
     int version = 1;
 
     float score = 99.9f;

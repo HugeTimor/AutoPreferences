@@ -93,24 +93,38 @@ public class PreferencesProcessor extends AbstractProcessor {
 
     private void addOperateMethod(Element preferences, TypeSpec.Builder classBuilder) {
         for (Element field : preferences.getEnclosedElements()) {
-            if (!isIgnored(field)) {
-                String fieldName = field.getSimpleName().toString();
-                String keyName = getKeyName(field);
-                TypeMirror type = field.asType();
-                Object defaultValue = ((VariableElement) field).getConstantValue();
+            //Skip the ignored field.
+            if (isIgnored(field)) {
+                continue;
+            }
 
-                MethodSpec getterMethod = genGetterMethod(fieldName, keyName, type, defaultValue);
-                classBuilder.addMethod(getterMethod);
+            String fieldName = field.getSimpleName().toString();
+            String keyName = getKeyName(field);
+            TypeMirror type = field.asType();
+            Object defValue = getDefaultValue(field);
+            String comment = elementUtils.getDocComment(field);
 
-                MethodSpec setterMethod = genSetterMethod(fieldName, keyName, type);
-                classBuilder.addMethod(setterMethod);
+            MethodSpec getterMethod = genGetterMethod(comment, fieldName, keyName, type, defValue);
+            classBuilder.addMethod(getterMethod);
 
-                if (haveCommitAnnotation(field)) {
-                    MethodSpec setterSyncMethod = genSetterSyncMethod(fieldName, keyName, type);
-                    classBuilder.addMethod(setterSyncMethod);
-                }
+            MethodSpec setterMethod = genSetterMethod(comment, fieldName, keyName, type);
+            classBuilder.addMethod(setterMethod);
+
+            if (haveCommitAnnotation(field)) {
+                MethodSpec setterSyncMethod = genSetterSyncMethod(comment, fieldName, keyName, type);
+                classBuilder.addMethod(setterSyncMethod);
             }
         }
+    }
+
+    private Object getDefaultValue(Element field) {
+        Object defValue = ((VariableElement) field).getConstantValue();
+        if (defValue instanceof String && ((String) defValue).isEmpty()) {
+            return "null";
+        } else if (defValue instanceof Float) {
+            return defValue + "f";
+        }
+        return defValue;
     }
 
     private boolean haveCommitAnnotation(Element field) {
@@ -135,57 +149,53 @@ public class PreferencesProcessor extends AbstractProcessor {
         }
     }
 
-    private MethodSpec genGetterMethod(String fieldName, String keyName, TypeMirror type,
-                                       Object defaultValue) {
-        defaultValue = formatValue(defaultValue);
+    private MethodSpec genGetterMethod(String comment, String fieldName, String key,
+                                       TypeMirror type, Object defValue) {
         String action = getAction(type, Act.GET);
         String methodName = getterNameFormat(fieldName);
-        return MethodSpec.methodBuilder(methodName)
+        MethodSpec.Builder method = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(ClassName.get(type))
                 .addParameter(Context, "context")
-                .addStatement("return getPreferences(context).$L($S,$L)", action, keyName, defaultValue)
-                .build();
+                .addStatement("return getPreferences(context).$L($S,$L)", action, key, defValue);
+        if (comment != null && !comment.isEmpty()) {
+            method.addJavadoc(comment);
+        }
+        return method.build();
     }
 
-    private MethodSpec genSetterMethod(String fieldName, String keyName, TypeMirror type) {
+    private MethodSpec genSetterMethod(String comment, String fieldName, String key, TypeMirror type) {
         String methodName = setterNameFormat(fieldName);
         String action = getAction(type, Act.PUT);
-        return MethodSpec.methodBuilder(methodName)
+        MethodSpec.Builder method = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(TypeName.VOID)
                 .addParameter(Context, "context")
                 .addParameter(ClassName.get(type), "value")
                 .addStatement("SharedPreferences.Editor editor = getPreferences(context).edit()")
-                .addStatement("editor.$L($S,value)", action, keyName)
-                .addStatement("editor.apply()")
-                .build();
+                .addStatement("editor.$L($S,value)", action, key)
+                .addStatement("editor.apply()");
+        if (comment != null && !comment.isEmpty()) {
+            method.addJavadoc(comment);
+        }
+        return method.build();
     }
 
-    private MethodSpec genSetterSyncMethod(String fieldName, String keyName, TypeMirror type) {
+    private MethodSpec genSetterSyncMethod(String comment, String fieldName, String key, TypeMirror type) {
         String methodName = setterNameFormat(fieldName) + "Sync";
         String action = getAction(type, Act.PUT);
-        return MethodSpec.methodBuilder(methodName)
+        MethodSpec.Builder method = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(TypeName.BOOLEAN)
                 .addParameter(Context, "context")
                 .addParameter(ClassName.get(type), "value")
                 .addStatement("SharedPreferences.Editor editor = getPreferences(context).edit()")
-                .addStatement("editor.$L($S,value)", action, keyName)
-                .addStatement("return editor.commit()")
-                .build();
-    }
-
-    private Object formatValue(Object defaultValue) {
-        Object result = defaultValue;
-        if (defaultValue instanceof String && ((String) defaultValue).isEmpty()) {
-            result = "null";
+                .addStatement("editor.$L($S,value)", action, key)
+                .addStatement("return editor.commit()");
+        if (comment != null && !comment.isEmpty()) {
+            method.addJavadoc(comment);
         }
-        // 避免替换 $L 时被认为 double
-        if (defaultValue instanceof Float) {
-            result = defaultValue + "f";
-        }
-        return result;
+        return method.build();
     }
 
     private String getAction(TypeMirror type, Act act) {
