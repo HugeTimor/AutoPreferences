@@ -1,5 +1,6 @@
 package me.zeyuan.lib.autopreferences;
 
+import me.zeyuan.lib.autopreferences.annotations.Commit;
 import me.zeyuan.lib.autopreferences.annotations.Name;
 import me.zeyuan.lib.autopreferences.annotations.Preferences;
 
@@ -8,6 +9,7 @@ interface Auth {
     @Name("auth_name")
     String userName = "";
 
+    @Commit()
     @Name("auth_token")
     String token = "";
 

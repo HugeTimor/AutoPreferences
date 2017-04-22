@@ -27,6 +27,7 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
+import me.zeyuan.lib.autopreferences.annotations.Commit;
 import me.zeyuan.lib.autopreferences.annotations.Ignore;
 import me.zeyuan.lib.autopreferences.annotations.Name;
 import me.zeyuan.lib.autopreferences.annotations.Preferences;
@@ -103,8 +104,17 @@ public class PreferencesProcessor extends AbstractProcessor {
 
                 MethodSpec setterMethod = genSetterMethod(fieldName, keyName, type);
                 classBuilder.addMethod(setterMethod);
+
+                if (haveCommitAnnotation(field)) {
+                    MethodSpec setterSyncMethod = genSetterSyncMethod(fieldName, keyName, type);
+                    classBuilder.addMethod(setterSyncMethod);
+                }
             }
         }
+    }
+
+    private boolean haveCommitAnnotation(Element field) {
+        return field.getAnnotation(Commit.class) != null;
     }
 
     private String getKeyName(Element field) {
@@ -149,6 +159,20 @@ public class PreferencesProcessor extends AbstractProcessor {
                 .addStatement("SharedPreferences.Editor editor = getPreferences(context).edit()")
                 .addStatement("editor.$L($S,value)", action, keyName)
                 .addStatement("editor.apply()")
+                .build();
+    }
+
+    private MethodSpec genSetterSyncMethod(String fieldName, String keyName, TypeMirror type) {
+        String methodName = setterNameFormat(fieldName) + "Sync";
+        String action = getAction(type, Act.PUT);
+        return MethodSpec.methodBuilder(methodName)
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .returns(TypeName.BOOLEAN)
+                .addParameter(Context, "context")
+                .addParameter(ClassName.get(type), "value")
+                .addStatement("SharedPreferences.Editor editor = getPreferences(context).edit()")
+                .addStatement("editor.$L($S,value)", action, keyName)
+                .addStatement("return editor.commit()")
                 .build();
     }
 
@@ -209,8 +233,8 @@ public class PreferencesProcessor extends AbstractProcessor {
         return text.substring(0, 1).toUpperCase() + text.substring(1);
     }
 
-    private boolean isIgnored(Element preference) {
-        return preference.getAnnotation(Ignore.class) != null;
+    private boolean isIgnored(Element field) {
+        return field.getAnnotation(Ignore.class) != null;
     }
 
     private String getPackageName(Element element) {
