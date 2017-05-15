@@ -1,4 +1,5 @@
 apply plugin: 'java'
+apply plugin: 'com.novoda.bintray-release'
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
@@ -7,4 +8,15 @@ dependencies {
     compile project(':annotations')
     compile 'com.google.auto.service:auto-service:1.0-rc3'
     compile 'com.squareup:javapoet:1.8.0'
+}
+
+publish {
+    groupId = 'me.zeyuan'
+    artifactId = 'auto-preferences-compiler'
+    publishVersion = '0.1.3'
+    desc = 'Annotation Processor of AutoPreferences'
+    website = 'https://github.com/HugeTimor/AutoPreferences'
+    bintrayUser = bintrayUser
+    bintrayKey = bintrayKey
+    dryRun = false
 }

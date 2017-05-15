@@ -39,3 +39,4 @@ out/
 
 # Keystore files
 *.jks
+/gradle.properties

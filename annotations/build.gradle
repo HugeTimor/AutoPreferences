@@ -1,9 +1,21 @@
 apply plugin: 'java'
+apply plugin: 'com.novoda.bintray-release'
 
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     sourceCompatibility = "1.7"
     targetCompatibility = "1.7"
+}
+
+publish {
+    groupId = 'me.zeyuan'
+    artifactId = 'auto-preferences-annotations'
+    publishVersion = '0.1.3'
+    desc = 'Annotations for AutoPreferences'
+    website = 'https://github.com/HugeTimor/AutoPreferences'
+    bintrayUser = bintrayUser
+    bintrayKey = bintrayKey
+    dryRun = false
 }
 
 
