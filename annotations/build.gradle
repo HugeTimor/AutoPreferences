@@ -10,7 +10,7 @@ dependencies {
 publish {
     groupId = 'me.zeyuan'
     artifactId = 'auto-preferences-annotations'
-    publishVersion = '0.1.3'
+    publishVersion = '0.2.0'
     desc = 'Annotations for AutoPreferences'
     website = 'https://github.com/HugeTimor/AutoPreferences'
     bintrayUser = bintrayUser
