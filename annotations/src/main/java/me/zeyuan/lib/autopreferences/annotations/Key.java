@@ -6,6 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
-@Target({ElementType.TYPE, ElementType.FIELD, ElementType.METHOD})
-public @interface Ignore {
+@Target(ElementType.FIELD)
+public @interface Key {
+    /**
+     * Name of key.
+     */
+    String value() default "";
 }

@@ -29,5 +29,8 @@ dependencies {
     testCompile 'junit:junit:4.12'
     compile project(':annotations')
     annotationProcessor project(':compiler')
+    testCompile 'junit:junit:4.12'
+//    compile 'me.zeyuan:auto-preferences-annotations:0.1.3'
+//    annotationProcessor 'me.zeyuan:auto-preferences-compiler:0.1.3'
     compile 'com.facebook.stetho:stetho:1.5.0'
 }

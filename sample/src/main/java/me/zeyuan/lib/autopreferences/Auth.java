@@ -1,18 +1,18 @@
 package me.zeyuan.lib.autopreferences;
 
 import me.zeyuan.lib.autopreferences.annotations.Commit;
-import me.zeyuan.lib.autopreferences.annotations.Name;
+import me.zeyuan.lib.autopreferences.annotations.Key;
 import me.zeyuan.lib.autopreferences.annotations.Preferences;
 
 @Preferences("test_auth")
 interface Auth {
-    @Name("auth_name")
+    @Key("auth_name")
     String userName = "";
 
     @Commit()
-    @Name("auth_token")
+    @Key("auth_token")
     String token = "";
 
-    @Name("auth_time")
+    @Key("auth_time")
     long time = 1234567890;
 }

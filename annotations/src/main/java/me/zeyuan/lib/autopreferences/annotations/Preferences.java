@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface Preferences {
     /**
-     * Name of SharedPreferences file.
+     * Name of SharedPreferences class.
      */
     String value() default "";
 }

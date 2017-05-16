@@ -1,7 +1,7 @@
 package me.zeyuan.lib.autopreferences;
 
-import me.zeyuan.lib.autopreferences.annotations.Ignore;
 import me.zeyuan.lib.autopreferences.annotations.Preferences;
+import me.zeyuan.lib.autopreferences.annotations.Skip;
 
 @Preferences()
 interface Setting {
@@ -17,7 +17,7 @@ interface Setting {
 
     long time = 1234567890;
 
-    @Ignore()
+    @Skip()
     enum Type {
         FIELD,
         CLASS

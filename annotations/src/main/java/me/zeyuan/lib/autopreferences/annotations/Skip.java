@@ -6,10 +6,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.CLASS)
-@Target(ElementType.FIELD)
-public @interface Name {
-    /**
-     * Name of key.
-     */
-    String value() default "";
+@Target({ElementType.TYPE, ElementType.FIELD, ElementType.METHOD})
+public @interface Skip {
 }

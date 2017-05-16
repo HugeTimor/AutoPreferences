@@ -28,9 +28,9 @@ import javax.lang.model.util.Elements;
 import javax.lang.model.util.Types;
 
 import me.zeyuan.lib.autopreferences.annotations.Commit;
-import me.zeyuan.lib.autopreferences.annotations.Ignore;
-import me.zeyuan.lib.autopreferences.annotations.Name;
+import me.zeyuan.lib.autopreferences.annotations.Key;
 import me.zeyuan.lib.autopreferences.annotations.Preferences;
+import me.zeyuan.lib.autopreferences.annotations.Skip;
 
 
 @AutoService(Processor.class)
@@ -94,12 +94,12 @@ public class PreferencesProcessor extends AbstractProcessor {
     private void addOperateMethod(Element preferences, TypeSpec.Builder classBuilder) {
         for (Element field : preferences.getEnclosedElements()) {
             //Skip the ignored field.
-            if (isIgnored(field)) {
+            if (isSkipped(field)) {
                 continue;
             }
 
             String fieldName = field.getSimpleName().toString();
-            String keyName = getKeyName(field);
+            String keyName = getNameOfKey(field);
             TypeMirror type = field.asType();
             Object defValue = getDefaultValue(field);
             String comment = elementUtils.getDocComment(field);
@@ -131,12 +131,12 @@ public class PreferencesProcessor extends AbstractProcessor {
         return field.getAnnotation(Commit.class) != null;
     }
 
-    private String getKeyName(Element field) {
-        Name name = field.getAnnotation(Name.class);
-        if (name == null || name.value().isEmpty()) {
+    private String getNameOfKey(Element field) {
+        Key key = field.getAnnotation(Key.class);
+        if (key == null || key.value().isEmpty()) {
             return field.getSimpleName().toString();
         } else {
-            return name.value();
+            return key.value();
         }
     }
 
@@ -243,8 +243,8 @@ public class PreferencesProcessor extends AbstractProcessor {
         return text.substring(0, 1).toUpperCase() + text.substring(1);
     }
 
-    private boolean isIgnored(Element field) {
-        return field.getAnnotation(Ignore.class) != null;
+    private boolean isSkipped(Element field) {
+        return field.getAnnotation(Skip.class) != null;
     }
 
     private String getPackageName(Element element) {
@@ -290,7 +290,6 @@ public class PreferencesProcessor extends AbstractProcessor {
                 return "Context.MODE_APPEND";
             default:
                 return "Context.MODE_PRIVATE";
-
         }
     }
 
@@ -299,7 +298,7 @@ public class PreferencesProcessor extends AbstractProcessor {
         Set<String> supportedAnnotations = new LinkedHashSet<>();
 
         supportedAnnotations.add(Preferences.class.getCanonicalName());
-        supportedAnnotations.add(Ignore.class.getCanonicalName());
+        supportedAnnotations.add(Skip.class.getCanonicalName());
 
         return supportedAnnotations;
     }
