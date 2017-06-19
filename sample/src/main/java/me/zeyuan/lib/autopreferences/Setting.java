@@ -22,5 +22,4 @@ interface Setting {
         FIELD,
         CLASS
     }
-
 }
