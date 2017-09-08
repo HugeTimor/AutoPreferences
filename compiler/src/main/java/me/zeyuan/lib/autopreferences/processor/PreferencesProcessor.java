@@ -8,6 +8,7 @@ import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -25,33 +26,29 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
-import javax.lang.model.util.Types;
+import javax.tools.Diagnostic.Kind;
 
 import me.zeyuan.lib.autopreferences.annotations.Commit;
 import me.zeyuan.lib.autopreferences.annotations.Key;
 import me.zeyuan.lib.autopreferences.annotations.Preferences;
-import me.zeyuan.lib.autopreferences.annotations.Skip;
 
 
 @AutoService(Processor.class)
 public class PreferencesProcessor extends AbstractProcessor {
 
-    private enum Act {
+    private enum Operation {
         PUT,
         GET
     }
 
     private static final String CLASS_NAME_SUFFIX = "Preferences";
-    private static final int CONTEXT_MODE_PRIVATE = 0x0000;
-
-    private Elements elementUtils;
-    private Types typeUtils;
-    private Filer filer;
-    private Messager messager;
 
     private TypeName SharedPreferences = ClassName.get("android.content", "SharedPreferences");
     private TypeName Context = ClassName.get("android.content", "Context");
 
+    private Elements elementUtils;
+    private Filer filer;
+    private Messager messager;
 
     /**
      * @param env 处理环境信息
@@ -61,68 +58,110 @@ public class PreferencesProcessor extends AbstractProcessor {
         super.init(env);
 
         elementUtils = env.getElementUtils();
-        typeUtils = env.getTypeUtils();
         filer = env.getFiler();
         messager = env.getMessager();
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment env) {
-        for (Element preferences : env.getElementsAnnotatedWith(Preferences.class)) {
-            if (preferences.getKind() == ElementKind.INTERFACE) {
+        for (Element annotatedFile : env.getElementsAnnotatedWith(Preferences.class)) {
+            if (annotatedFile.getKind() != ElementKind.INTERFACE) {
+                error("@Preferences can only be applied attach to interface", annotatedFile);
+            }
 
-                TypeSpec.Builder classBuilder = buildBaseClass(preferences);
-
-                addOperateMethod(preferences, classBuilder);
-
-                writeToJavaFile(getPackageName(preferences), classBuilder.build());
+            JavaFile javaFile = brewJava(annotatedFile);
+            try {
+                javaFile.writeTo(filer);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
         return false;
     }
 
-    private TypeSpec.Builder buildBaseClass(Element preferences) {
-        String fileName = getFileName(preferences);
-        MethodSpec getPreferences = genGetPreferences(fileName);
-
-        String className = preferences.getSimpleName().toString() + CLASS_NAME_SUFFIX;
-        return TypeSpec.classBuilder(className)
-                .addModifiers(Modifier.PUBLIC)
-                .addMethod(getPreferences);
+    @Override
+    public Set<String> getSupportedAnnotationTypes() {
+        Set<String> supportedAnnotations = new LinkedHashSet<>();
+        supportedAnnotations.add(Preferences.class.getCanonicalName());
+        return supportedAnnotations;
     }
 
-    private void addOperateMethod(Element preferences, TypeSpec.Builder classBuilder) {
-        for (Element field : preferences.getEnclosedElements()) {
-            //Skip the ignored field.
-            if (isSkipped(field)) {
-                continue;
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+    }
+
+    private JavaFile brewJava(Element annotatedFile) {
+        String className = annotatedFile.getSimpleName().toString() + CLASS_NAME_SUFFIX;
+        TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className);
+        classBuilder.addModifiers(Modifier.PUBLIC);
+
+        classBuilder.addMethod(genGetPreferencesMethod(annotatedFile));
+        classBuilder.addMethods(genOperationMethods(annotatedFile));
+
+        return JavaFile
+                .builder(getPackageName(annotatedFile), classBuilder.build())
+                .addFileComment("This codes are generated automatically. Do not modify!")
+                .build();
+    }
+
+    private void error(String message, Element preferences) {
+        messager.printMessage(Kind.ERROR, message, preferences);
+    }
+
+    private void error(String message) {
+        messager.printMessage(Kind.ERROR, message);
+    }
+
+    private ArrayList<MethodSpec> genOperationMethods(Element annotatedFile) {
+        ArrayList<MethodSpec> methods = new ArrayList<>();
+        for (Element field : annotatedFile.getEnclosedElements()) {
+            if (!isSupportType(field)) {
+                error("The " + field.asType().toString() + " is no supported");
             }
-
-            String fieldName = field.getSimpleName().toString();
-            String keyName = getNameOfKey(field);
-            TypeMirror type = field.asType();
-            Object defValue = getDefaultValue(field);
-            String comment = elementUtils.getDocComment(field);
-
-            MethodSpec getterMethod = genGetterMethod(comment, fieldName, keyName, type, defValue);
-            classBuilder.addMethod(getterMethod);
-
-            MethodSpec setterMethod = genSetterMethod(comment, fieldName, keyName, type);
-            classBuilder.addMethod(setterMethod);
-
+            MethodSpec getterMethod = genGetterMethod(field);
+            methods.add(getterMethod);
+            MethodSpec setterMethod = genSetterMethod(field);
+            methods.add(setterMethod);
             if (haveCommitAnnotation(field)) {
-                MethodSpec setterSyncMethod = genSetterSyncMethod(comment, fieldName, keyName, type);
-                classBuilder.addMethod(setterSyncMethod);
+                MethodSpec setterSyncMethod = genSetterSyncMethod(field);
+                methods.add(setterSyncMethod);
             }
         }
+        return methods;
+    }
+
+    private boolean isSupportType(Element field) {
+        TypeMirror type = field.asType();
+        switch (type.getKind()) {
+            case BOOLEAN:
+            case INT:
+            case LONG:
+            case FLOAT:
+            case DOUBLE:
+                return true;
+        }
+        if (type.toString().equals("java.lang.String")) {
+            return true;
+        }
+        if (type.toString().equals("java.util.Set<java.lang.String>")) {
+            return true;
+        }
+        return false;
     }
 
     private Object getDefaultValue(Element field) {
         Object defValue = ((VariableElement) field).getConstantValue();
-        if (defValue instanceof String && ((String) defValue).isEmpty()) {
-            return "null";
+        if (defValue instanceof String) {
+            if (((String) defValue).isEmpty()) {
+                return "null";
+            } else {
+                return "\"" + defValue + "\"";
+            }
         } else if (defValue instanceof Float) {
             return defValue + "f";
+        } else if (defValue instanceof Double) {
+            return "\"" + defValue + "\"";
         }
         return defValue;
     }
@@ -141,66 +180,93 @@ public class PreferencesProcessor extends AbstractProcessor {
     }
 
     private String getFileName(Element preferences) {
-        Preferences pref = preferences.getAnnotation(Preferences.class);
-        if (pref.value().isEmpty()) {
+        Preferences annotation = preferences.getAnnotation(Preferences.class);
+        if (annotation.value().isEmpty()) {
             return preferences.getSimpleName().toString();
         } else {
-            return pref.value();
+            return annotation.value();
         }
     }
 
-    private MethodSpec genGetterMethod(String comment, String fieldName, String key,
-                                       TypeMirror type, Object defValue) {
-        String action = getAction(type, Act.GET);
+    private MethodSpec genGetterMethod(Element field) {
+        String fieldName = field.getSimpleName().toString();
+        String keyName = getNameOfKey(field);
+        Object defValue = getDefaultValue(field);
+        String comment = elementUtils.getDocComment(field);
+        TypeMirror type = field.asType();
+
+        String action = getAction(type, Operation.GET);
         String methodName = getterNameFormat(fieldName);
         MethodSpec.Builder method = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(ClassName.get(type))
-                .addParameter(Context, "context")
-                .addStatement("return getPreferences(context).$L($S,$L)", action, key, defValue);
+                .addParameter(Context, "context");
+        if (((VariableElement) field).getConstantValue() instanceof Double) {
+            method.addStatement("return Double.valueOf(getPreferences(context).$L($S,$L))", action, keyName, defValue);
+        } else {
+            method.addStatement("return getPreferences(context).$L($S,$L)", action, keyName, defValue);
+        }
         if (comment != null && !comment.isEmpty()) {
             method.addJavadoc(comment);
         }
         return method.build();
     }
 
-    private MethodSpec genSetterMethod(String comment, String fieldName, String key, TypeMirror type) {
+    private MethodSpec genSetterMethod(Element field) {
+        String fieldName = field.getSimpleName().toString();
+        String keyName = getNameOfKey(field);
+        String comment = elementUtils.getDocComment(field);
+        TypeMirror type = field.asType();
+
         String methodName = setterNameFormat(fieldName);
-        String action = getAction(type, Act.PUT);
+        String action = getAction(type, Operation.PUT);
         MethodSpec.Builder method = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(TypeName.VOID)
                 .addParameter(Context, "context")
                 .addParameter(ClassName.get(type), "value")
-                .addStatement("SharedPreferences.Editor editor = getPreferences(context).edit()")
-                .addStatement("editor.$L($S,value)", action, key)
-                .addStatement("editor.apply()");
+                .addStatement("SharedPreferences.Editor editor = getPreferences(context).edit()");
+        if (ClassName.get(type).toString().equals("double")) {
+            method.addStatement("editor.$L($S,String.valueOf(value))", action, keyName);
+        } else {
+            method.addStatement("editor.$L($S,value)", action, keyName);
+        }
+        method.addStatement("editor.apply()");
         if (comment != null && !comment.isEmpty()) {
             method.addJavadoc(comment);
         }
         return method.build();
     }
 
-    private MethodSpec genSetterSyncMethod(String comment, String fieldName, String key, TypeMirror type) {
+    private MethodSpec genSetterSyncMethod(Element field) {
+        String fieldName = field.getSimpleName().toString();
+        String keyName = getNameOfKey(field);
+        String comment = elementUtils.getDocComment(field);
+        TypeMirror type = field.asType();
+
         String methodName = setterNameFormat(fieldName) + "Sync";
-        String action = getAction(type, Act.PUT);
+        String action = getAction(type, Operation.PUT);
         MethodSpec.Builder method = MethodSpec.methodBuilder(methodName)
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(TypeName.BOOLEAN)
                 .addParameter(Context, "context")
                 .addParameter(ClassName.get(type), "value")
-                .addStatement("SharedPreferences.Editor editor = getPreferences(context).edit()")
-                .addStatement("editor.$L($S,value)", action, key)
-                .addStatement("return editor.commit()");
+                .addStatement("SharedPreferences.Editor editor = getPreferences(context).edit()");
+        if (ClassName.get(type).toString().equals("double")) {
+            method.addStatement("editor.$L($S,String.valueOf(value))", action, keyName);
+        } else {
+            method.addStatement("editor.$L($S,value)", action, keyName);
+        }
+        method.addStatement("return editor.commit()");
         if (comment != null && !comment.isEmpty()) {
             method.addJavadoc(comment);
         }
         return method.build();
     }
 
-    private String getAction(TypeMirror type, Act act) {
+    private String getAction(TypeMirror type, Operation operation) {
         String prefix;
-        if (act == Act.PUT) {
+        if (operation == Operation.PUT) {
             prefix = "put";
         } else {
             prefix = "get";
@@ -212,11 +278,13 @@ public class PreferencesProcessor extends AbstractProcessor {
                 return prefix + "Int";
             case "float":
                 return prefix + "Float";
+            case "double":
+                return prefix + "String";
             case "long":
                 return prefix + "Long";
             case "java.lang.String":
                 return prefix + "String";
-            case "java.util.Set":
+            case "java.util.Set<java.lang.String>":
                 return prefix + "StringSet";
         }
         return null;
@@ -243,68 +311,17 @@ public class PreferencesProcessor extends AbstractProcessor {
         return text.substring(0, 1).toUpperCase() + text.substring(1);
     }
 
-    private boolean isSkipped(Element field) {
-        return field.getAnnotation(Skip.class) != null;
-    }
-
     private String getPackageName(Element element) {
         return elementUtils.getPackageOf(element).getQualifiedName().toString();
     }
 
-    private void writeToJavaFile(String packageName, TypeSpec typeSpec) {
-        JavaFile javaFile = JavaFile
-                .builder(packageName, typeSpec)
-                .addFileComment("This codes are generated automatically. Do not modify!")
-                .build();
-
-        try {
-            javaFile.writeTo(filer);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private MethodSpec genGetPreferences(String name) {
-        return genGetPreferences(name, CONTEXT_MODE_PRIVATE);
-    }
-
-    private MethodSpec genGetPreferences(String name, int mode) {
-        String modeName = getModeName(mode);
+    private MethodSpec genGetPreferencesMethod(Element annotatedFile) {
+        String fileName = getFileName(annotatedFile);
         return MethodSpec.methodBuilder("getPreferences")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(SharedPreferences)
                 .addParameter(Context, "context")
-                .addStatement("return context.getSharedPreferences($S, $L)", name, modeName)
+                .addStatement("return context.getSharedPreferences($S, $L)", fileName, "Context.MODE_PRIVATE")
                 .build();
-    }
-
-    private String getModeName(int mode) {
-        switch (mode) {
-            case 0x0000:
-                return "Context.MODE_PRIVATE";
-            case 0x0001:
-                return "Context.MODE_WORLD_READABLE";
-            case 0x0002:
-                return "Context.MODE_WORLD_WRITEABLE";
-            case 0x8000:
-                return "Context.MODE_APPEND";
-            default:
-                return "Context.MODE_PRIVATE";
-        }
-    }
-
-    @Override
-    public Set<String> getSupportedAnnotationTypes() {
-        Set<String> supportedAnnotations = new LinkedHashSet<>();
-
-        supportedAnnotations.add(Preferences.class.getCanonicalName());
-        supportedAnnotations.add(Skip.class.getCanonicalName());
-
-        return supportedAnnotations;
-    }
-
-    @Override
-    public SourceVersion getSupportedSourceVersion() {
-        return SourceVersion.latestSupported();
     }
 }
