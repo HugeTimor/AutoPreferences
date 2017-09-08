@@ -13,7 +13,7 @@ dependencies {
 publish {
     groupId = 'me.zeyuan'
     artifactId = 'auto-preferences-compiler'
-    publishVersion = '0.2.0'
+    publishVersion = '0.3.0'
     desc = 'Annotation Processor of AutoPreferences'
     website = 'https://github.com/HugeTimor/AutoPreferences'
     bintrayUser = bintrayUser
