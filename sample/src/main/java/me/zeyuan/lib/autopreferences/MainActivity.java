@@ -23,6 +23,7 @@ public class MainActivity extends AppCompatActivity {
         getButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                AuthPreferences.getUserName(MainActivity.this);
                 label.setText("Version:" + SettingPreferences.getVersion(MainActivity.this));
             }
         });

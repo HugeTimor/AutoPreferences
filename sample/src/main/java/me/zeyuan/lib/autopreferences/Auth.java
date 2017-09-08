@@ -7,11 +7,14 @@ import me.zeyuan.lib.autopreferences.annotations.Preferences;
 @Preferences("test_auth")
 interface Auth {
     @Key("auth_name")
-    String userName = "";
+    String userName = "perter";
 
     @Commit()
     @Key("auth_token")
-    String token = "";
+    String token = "fasdfad";
+
+    @Commit()
+    double validTime = 22.3333;
 
     @Key("auth_time")
     long time = 1234567890;

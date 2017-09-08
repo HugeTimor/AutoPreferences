@@ -1,7 +1,8 @@
 package me.zeyuan.lib.autopreferences;
 
+import java.util.Set;
+
 import me.zeyuan.lib.autopreferences.annotations.Preferences;
-import me.zeyuan.lib.autopreferences.annotations.Skip;
 
 @Preferences()
 interface Setting {
@@ -15,11 +16,11 @@ interface Setting {
 
     float score = 99.9f;
 
+    double doubleField = 222.2222;
+
     long time = 1234567890;
 
-    @Skip()
-    enum Type {
-        FIELD,
-        CLASS
-    }
+    Set<String> langs = null;
+
+    String name = null;
 }
