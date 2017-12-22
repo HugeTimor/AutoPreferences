@@ -31,6 +31,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 SettingPreferences.setVersion(MainActivity.this, 100);
+                SettingPreferences.getName2(MainActivity.this);
             }
         });
     }

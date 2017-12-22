@@ -23,4 +23,6 @@ interface Setting {
     Set<String> langs = null;
 
     String name = null;
+
+    String name2 = "";
 }

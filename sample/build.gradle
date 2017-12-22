@@ -28,8 +28,8 @@ dependencies {
     compile 'com.android.support.constraint:constraint-layout:1.0.2'
     testCompile 'junit:junit:4.12'
 //    compile project(':annotations')
-    annotationProcessor project(':compiler')
-    compile 'me.zeyuan:auto-preferences-annotations:0.2.0'
-//    annotationProcessor 'me.zeyuan:auto-preferences-compiler:0.2.0'
+//    annotationProcessor project(':compiler')
+    compile 'me.zeyuan:auto-preferences-annotations:0.4.0'
+    annotationProcessor 'me.zeyuan:auto-preferences-compiler:0.4.0'
     compile 'com.facebook.stetho:stetho:1.5.0'
 }

@@ -152,9 +152,13 @@ public class PreferencesProcessor extends AbstractProcessor {
 
     private Object getDefaultValue(Element field) {
         Object defValue = ((VariableElement) field).getConstantValue();
+        if (defValue == null) {
+            return "null";
+        }
         if (defValue instanceof String) {
-            if (((String) defValue).isEmpty()) {
-                return "null";
+            String stringValue = (String) defValue;
+            if (stringValue.isEmpty()) {
+                return "\"\"";
             } else {
                 return "\"" + defValue + "\"";
             }

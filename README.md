@@ -5,8 +5,8 @@ Auto generate Android SharedPreferences read and write methods by annotation.
 
 ```groovy
 dependencies {
-  compile 'me.zeyuan:auto-preferences-annotations:0.2.0'
-  annotationProcessor 'me.zeyuan:auto-preferences-compiler:0.2.0'
+  compile 'me.zeyuan:auto-preferences-annotations:0.4.0'
+  annotationProcessor 'me.zeyuan:auto-preferences-compiler:0.4.0'
 }
 ```
 
