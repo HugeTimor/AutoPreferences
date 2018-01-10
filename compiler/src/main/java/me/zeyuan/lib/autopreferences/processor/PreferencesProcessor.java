@@ -2,6 +2,7 @@ package me.zeyuan.lib.autopreferences.processor;
 
 import com.google.auto.service.AutoService;
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.TypeName;
@@ -35,6 +36,8 @@ import me.zeyuan.lib.autopreferences.annotations.Preferences;
 
 @AutoService(Processor.class)
 public class PreferencesProcessor extends AbstractProcessor {
+
+    public static final String FILE_NAME = "FILE_NAME";
 
     private enum Operation {
         PUT,
@@ -96,12 +99,40 @@ public class PreferencesProcessor extends AbstractProcessor {
         TypeSpec.Builder classBuilder = TypeSpec.classBuilder(className);
         classBuilder.addModifiers(Modifier.PUBLIC);
 
+        classBuilder.addField(buildFileNameField(annotatedFile));
+        classBuilder.addMethod(buildGetFileNameMethod());
+        classBuilder.addMethod(buildSetFileNameMethod());
         classBuilder.addMethod(genGetPreferencesMethod(annotatedFile));
         classBuilder.addMethods(genOperationMethods(annotatedFile));
 
         return JavaFile
                 .builder(getPackageName(annotatedFile), classBuilder.build())
                 .addFileComment("This codes are generated automatically. Do not modify!")
+                .build();
+    }
+
+    private MethodSpec buildSetFileNameMethod() {
+        return MethodSpec.methodBuilder("setPreferencesFileName")
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .returns(TypeName.VOID)
+                .addParameter(String.class, "name")
+                .addStatement(FILE_NAME + " = name")
+                .build();
+    }
+
+    private MethodSpec buildGetFileNameMethod() {
+        return MethodSpec.methodBuilder("getPreferencesFileName")
+                .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
+                .returns(String.class)
+                .addStatement("return " + FILE_NAME)
+                .build();
+    }
+
+    private FieldSpec buildFileNameField(Element annotatedFile) {
+        String fileName = getFileName(annotatedFile);
+        return FieldSpec.builder(String.class, FILE_NAME)
+                .addModifiers(Modifier.PRIVATE, Modifier.STATIC)
+                .initializer("$S", fileName)
                 .build();
     }
 
@@ -320,12 +351,11 @@ public class PreferencesProcessor extends AbstractProcessor {
     }
 
     private MethodSpec genGetPreferencesMethod(Element annotatedFile) {
-        String fileName = getFileName(annotatedFile);
         return MethodSpec.methodBuilder("getPreferences")
                 .addModifiers(Modifier.PUBLIC, Modifier.STATIC)
                 .returns(SharedPreferences)
                 .addParameter(Context, "context")
-                .addStatement("return context.getSharedPreferences($S, $L)", fileName, "Context.MODE_PRIVATE")
+                .addStatement("return context.getSharedPreferences($L, $L)", FILE_NAME, "Context.MODE_PRIVATE")
                 .build();
     }
 }

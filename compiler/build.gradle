@@ -7,13 +7,13 @@ dependencies {
     targetCompatibility = "1.7"
     compile project(':annotations')
     compile 'com.google.auto.service:auto-service:1.0-rc3'
-    compile 'com.squareup:javapoet:1.8.0'
+    compile 'com.squareup:javapoet:1.9.0'
 }
 
 publish {
     groupId = 'me.zeyuan'
     artifactId = 'auto-preferences-compiler'
-    publishVersion = '0.4.0'
+    publishVersion = '0.5.1'
     desc = 'Annotation Processor of AutoPreferences'
     website = 'https://github.com/HugeTimor/AutoPreferences'
     bintrayUser = bintrayUser
